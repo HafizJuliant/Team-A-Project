@@ -27,9 +27,9 @@ func NewTrans(db *gorm.DB) NewTransactionInterface {
 func (a *newTransactionImplement) NewTransaction(c *gin.Context) {
 	var data struct {
 		AccountID             int64  `json:"account_id"`
-		TransactionCategoryID int64 `json:"transaction_category_id"`
-		FromAccountID         int64 `json:"from_account_id"`
-		ToAccountID           int64 `json:"to_account_id"`
+		TransactionCategoryID *int64 `json:"transaction_category_id"`
+		FromAccountID         *int64 `json:"from_account_id"`
+		ToAccountID           *int64 `json:"to_account_id"`
 		Amount                int64  `json:"amount"`
 		TransactionDesc		  string `json:"transaction_desc"`
 		FromBankID			  int64  `json:"from_bank_id"`
