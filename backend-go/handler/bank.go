@@ -42,7 +42,7 @@ func (h *BankHandler) ListBanks(c *gin.Context) {
 	// Fetch banks from external API
 	externalBanks, err := h.fetchExternalBanks()
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to fetch bank list"})
+		c.JSON(500, gin.H{"error": "Failed to fetch bank list: " + err.Error()})
 		return
 	}
 
@@ -177,25 +177,18 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 
 // Helper functions for external API calls
 func (h *BankHandler) fetchExternalBanks() ([]Bank, error) {
-	resp, err := http.Get(os.Getenv("https://training-bas-external-api.theflavare.com/api/v1") + "/transfer/list-bank")
+	resp, err := http.Get(os.Getenv("EXTERNAL_API_URL") + "/transfer/list-bank")
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var apiResp ExternalAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return nil, err
-	}
-
-	// Convert api response data to []Bank
-	banksData, err := json.Marshal(apiResp.Data)
-	if err != nil {
+	if resp.StatusCode != 200 {
 		return nil, err
 	}
 
 	var banks []Bank
-	if err := json.Unmarshal(banksData, &banks); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&banks); err != nil {
 		return nil, err
 	}
 
@@ -203,7 +196,7 @@ func (h *BankHandler) fetchExternalBanks() ([]Bank, error) {
 }
 
 func (h *BankHandler) checkExternalAccount(bankID, accountID string) (bool, map[string]interface{}, error) {
-	url := fmt.Sprintf("%s/banks/%s/accounts/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountID)
+	url := fmt.Sprintf("%s/transfer/%s/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountID)
 	resp, err := http.Get(url)
 	if err != nil {
 		return false, nil, err
