@@ -60,7 +60,7 @@ func (h *BankHandler) ListBanks(c *gin.Context) {
 func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	var req struct {
 		BankID        string `json:"bank_id"`
-		AccountNumber string `json:"account_number"`
+		AccountID string `json:"account_id"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -71,7 +71,7 @@ func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	// Check if it's internal (Celengan) bank
 	if req.BankID == "00-21" {
 		var account model.Account
-		if err := h.db.Where("id = ?", req.AccountNumber).First(&account).Error; err != nil {
+		if err := h.db.Where("id = ?", req.AccountID).First(&account).Error; err != nil {
 			c.JSON(404, gin.H{"error": "Account not found"})
 			return
 		}
@@ -86,7 +86,7 @@ func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	}
 
 	// Check external bank account
-	valid, accountInfo, err := h.checkExternalAccount(req.BankID, req.AccountNumber)
+	valid, accountInfo, err := h.checkExternalAccount(req.BankID, req.AccountID)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to check account"})
 		return
