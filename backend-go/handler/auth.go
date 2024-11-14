@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"backend/model"
+	"backend-go/model"
 	"fmt"
 	"net/http"
 	"time"

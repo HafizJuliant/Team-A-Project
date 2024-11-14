@@ -1,18 +1,24 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
+	"backend-go/handler"
+	"backend-go/middleware"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"github.com/rs/cors"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type transfer struct {
-	AccountID   string `json:"account_id"`
-	Name string `json:"name"`
-	Balance string `json:"balance"`
-	BankID int64 `json:"bank_id"` 
+	AccountID string `json:"account_id"`
+	Name      string `json:"name"`
+	Balance   string `json:"balance"`
+	BankID    int64  `json:"bank_id"`
 }
 
 type MyAPIResponse struct {
@@ -20,48 +26,96 @@ type MyAPIResponse struct {
 }
 
 func main() {
-	http.HandleFunc("/transfer", MyAPIHandler)
-	fmt.Println("Server starting on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Env
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file", err)
+	}
+
+	// Database
+	db := NewDatabase()
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("failed to get DB from GORM:", err)
+	}
+	defer sqlDB.Close()
+
+	// secret-key
+	signingKey := os.Getenv("SIGNING_KEY")
+
+	r := gin.Default()
+
+	// grouping route with /auth
+	authHandler := handler.NewAuth(db, []byte(signingKey))
+	authRoute := r.Group("/auth")
+	authRoute.POST("/login", authHandler.Login)
+	authRoute.POST("/upsert", authHandler.Upsert)
+	authRoute.POST("/change-password", middleware.AuthMiddleware(signingKey), authHandler.ChangePassword)
+
+	// grouping route with /account
+	accountHandler := handler.NewAccount(db)
+	accountRoutes := r.Group("/account")
+	accountRoutes.POST("/create", accountHandler.Create)
+	accountRoutes.GET("/read/:id", accountHandler.Read)
+	accountRoutes.PATCH("/update/:id", accountHandler.Update)
+	accountRoutes.DELETE("/delete/:id", accountHandler.Delete)
+	accountRoutes.GET("/list", accountHandler.List)
+	accountRoutes.POST("/topup", accountHandler.TopUp)
+
+	// middleware := middleware.AuthMiddleware(signingKey)
+	accountRoutes.GET("/my", middleware.AuthMiddleware(signingKey), accountHandler.My)
+	accountRoutes.GET("/balance", middleware.AuthMiddleware(signingKey), accountHandler.Balance)
+	accountRoutes.POST("/transfer", middleware.AuthMiddleware(signingKey), accountHandler.TransferLocal)
+
+	// grouping route with /transaction-category
+	transaction_categoryHandler := handler.NewTransCat(db)
+	transaction_categoryRoutes := r.Group("/transaction-category")
+	transaction_categoryRoutes.POST("/create", transaction_categoryHandler.Create)
+	transaction_categoryRoutes.GET("/read/:id", transaction_categoryHandler.Read)
+	transaction_categoryRoutes.PATCH("/update/:id", transaction_categoryHandler.Update)
+	transaction_categoryRoutes.DELETE("/delete/:id", transaction_categoryHandler.Delete)
+	transaction_categoryRoutes.GET("/list", transaction_categoryHandler.List)
+
+	transaction_categoryRoutes.GET("/my", middleware.AuthMiddleware(signingKey), transaction_categoryHandler.My)
+
+	transactionHandler := handler.NewTrans(db)
+	transactionRoutes := r.Group("/transaction")
+	transactionRoutes.POST("/new", transactionHandler.NewTransaction)
+	transactionRoutes.GET("/list", transactionHandler.TransactionList)
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Access-Control-Allow-Origin"},
+		AllowCredentials: true,
+	})
+
+	handler := c.Handler(r)
+	http.ListenAndServe(":8080", handler)
+
+	r.Run(":8080") // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
 
-func MyAPIHandler(w http.ResponseWriter, r *http.Request) {
-	// URL of the external API
-	externalAPIURL := "http://147.139.143.164:8082/api/v1/transfer"
-
-	// Make a GET request to the external API
-	resp, err := http.Get(externalAPIURL)
+func NewDatabase() *gorm.DB {
+	// dsn := "host=localhost port=5432 user=postgres dbname=digi sslmode=disable TimeZone=Asia/Jakarta"
+	dsn := os.Getenv("DATABASE")
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		http.Error(w, "Failed to fetch data from external API", http.StatusInternalServerError)
-		return
+		log.Fatal(err)
 	}
-	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
+	sqlDB, err := db.DB()
 	if err != nil {
-		http.Error(w, "Failed to read response body", http.StatusInternalServerError)
-		return
+		log.Fatalf("failed to get DB object: %v", err)
 	}
 
-	// Parse the external API response
-	var DataTransfers []transfer
-	err = json.Unmarshal(body, &DataTransfers)
+	var currentDB string
+	err = sqlDB.QueryRow("SELECT current_database()").Scan(&currentDB)
 	if err != nil {
-		http.Error(w, "Failed to parse JSON response", http.StatusInternalServerError)
-		return
+		log.Fatalf("failed to query current database: %v", err)
 	}
 
-	// Create your own API response structure and populate it with the external data
-	myResponse := MyAPIResponse{
-		Data: DataTransfers,
-	}
+	log.Printf("Current Database: %s\n", currentDB)
 
-	// Set response headers and encode response as JSON
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(myResponse)
-	if err != nil {
-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
-		return
-	}
+	return db
 }
