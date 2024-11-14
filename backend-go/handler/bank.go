@@ -28,9 +28,9 @@ type ExternalAPIResponse struct {
 }
 
 type TransferRequest struct {
-	BankID        string  `json:"bank_id"`
-	AccountID string  `json:"account_id"`
-	Amount        int64 `json:"amount"`
+	BankID    string `json:"bank_id"`
+	AccountID string `json:"account_id"`
+	Amount    int64  `json:"amount"`
 }
 
 func NewBankHandler(db *gorm.DB) *BankHandler {
@@ -46,7 +46,7 @@ func (h *BankHandler) ListBanks(c *gin.Context) {
 		return
 	}
 
-	// Add Celengan bank
+	// // Add Celengan bank
 	celenganBank := Bank{
 		ID:   "00-21",
 		Name: "Bank Celengan",
@@ -59,7 +59,7 @@ func (h *BankHandler) ListBanks(c *gin.Context) {
 // CheckTransferAccount validates account for transfer
 func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	var req struct {
-		BankID        string `json:"bank_id"`
+		BankID    string `json:"bank_id"`
 		AccountID string `json:"account_id"`
 	}
 
@@ -79,7 +79,7 @@ func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 			"valid": true,
 			"account_info": map[string]interface{}{
 				"account_id": account.AccountID,
-				"name":           account.Name,
+				"name":       account.Name,
 			},
 		})
 		return
@@ -156,8 +156,8 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 
 	// Create transaction record
 	transaction := model.Transaction{
-		AccountID:       senderAccount.AccountID,
-		Amount:          req.Amount,
+		AccountID: senderAccount.AccountID,
+		Amount:    req.Amount,
 	}
 
 	if err := tx.Create(&transaction).Error; err != nil {
@@ -177,7 +177,7 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 
 // Helper functions for external API calls
 func (h *BankHandler) fetchExternalBanks() ([]Bank, error) {
-	resp, err := http.Get(os.Getenv("EXTERNAL_API_URL") + "/banks")
+	resp, err := http.Get(os.Getenv("https://training-bas-external-api.theflavare.com/api/v1") + "/transfer/list-bank")
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +202,8 @@ func (h *BankHandler) fetchExternalBanks() ([]Bank, error) {
 	return banks, nil
 }
 
-func (h *BankHandler) checkExternalAccount(bankID, accountNumber string) (bool, map[string]interface{}, error) {
-	url := fmt.Sprintf("%s/banks/%s/accounts/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountNumber)
+func (h *BankHandler) checkExternalAccount(bankID, accountID string) (bool, map[string]interface{}, error) {
+	url := fmt.Sprintf("%s/banks/%s/accounts/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountID)
 	resp, err := http.Get(url)
 	if err != nil {
 		return false, nil, err
@@ -229,9 +229,9 @@ func (h *BankHandler) checkExternalAccount(bankID, accountNumber string) (bool, 
 
 func (h *BankHandler) processExternalTransfer(req TransferRequest) error {
 	transferData := map[string]interface{}{
-		"bank_id":        req.BankID,
+		"bank_id":    req.BankID,
 		"account_id": req.AccountID,
-		"amount":         req.Amount,
+		"amount":     req.Amount,
 	}
 
 	jsonData, err := json.Marshal(transferData)

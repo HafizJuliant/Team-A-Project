@@ -84,8 +84,9 @@ func main() {
 	transactionRoutes.GET("/list", transactionHandler.TransactionList)
 
 	bankHandler := handler.NewBankHandler(db)
-	bankRoutes := r.Group("/transfer")
+	bankRoutes := r.Group("/bank")
 	bankRoutes.POST("/check", bankHandler.CheckTransferAccount)
+	bankRoutes.GET("/list", bankHandler.ListBanks)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
