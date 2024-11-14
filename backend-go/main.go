@@ -87,6 +87,7 @@ func main() {
 	bankRoutes := r.Group("/bank")
 	bankRoutes.POST("/transfer", bankHandler.Transfer)
 	bankRoutes.GET("/list", bankHandler.ListBanks)
+	bankRoutes.POST("/check/", bankHandler.CheckTransferAccount)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
