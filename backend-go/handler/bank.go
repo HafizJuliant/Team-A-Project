@@ -112,7 +112,7 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 	}
 
 	// Get sender's account
-	userID := c.GetUint("user_id")
+	userID := c.GetUint("account_id")
 	var senderAccount model.Account
 	if err := h.db.First(&senderAccount, userID).Error; err != nil {
 		c.JSON(404, gin.H{"error": "Sender account not found"})
