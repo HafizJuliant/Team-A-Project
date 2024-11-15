@@ -89,7 +89,7 @@ func (a *authImplement) Login(c *gin.Context) {
 	// Success response
 	c.JSON(http.StatusOK, gin.H{
 		"message": fmt.Sprintf("%v Login succes", payload.Username),
-		"data":    token,
+		"token":    token,
 	})
 }
 
