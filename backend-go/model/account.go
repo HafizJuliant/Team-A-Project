@@ -5,6 +5,6 @@ type Account struct {
 	Name      string `json:"name"`
 	Balance   int64  `json:"balance"`
 	Alamat 		string `json:"alamat"`
-	No_telepon int64 `json:"no_telepon"`
+	No_telp int64 `json:"no_telp"`
 	Bank_id string `json:"bank_id"`
 }
