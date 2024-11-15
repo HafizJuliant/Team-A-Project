@@ -14,16 +14,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type transfer struct {
-	AccountID string `json:"account_id"`
-	Name      string `json:"name"`
-	Balance   string `json:"balance"`
-	BankID    int64  `json:"bank_id"`
-}
+// type transfer struct {
+// 	AccountID string `json:"account_id"`
+// 	Name      string `json:"name"`
+// 	Balance   string `json:"balance"`
+// 	BankID    int64  `json:"bank_id"`
+// }
 
-type MyAPIResponse struct {
-	Data []transfer `json:"data"`
-}
+// type MyAPIResponse struct {
+// 	Data []transfer `json:"data"`
+// }
 
 func main() {
 	// Env

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
+	// "time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -131,9 +131,10 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 	}
 
 	// Get sender's account
-	userID := c.GetUint("account_id")
+	accountID := c.Query("account_id")
 	var senderAccount model.Account
-	if err := h.db.First(&senderAccount, userID).Error; err != nil {
+	if err := h.db.First(&senderAccount, accountID).Error; err != nil {
+		fmt.Println(err)
 		c.JSON(404, gin.H{"error": "Sender account not found"})
 		return
 	}
@@ -173,6 +174,7 @@ func (h *BankHandler) Transfer(c *gin.Context) {
 		// External transfer
 		if err := h.processExternalTransfer(req); err != nil {
 			tx.Rollback()
+			fmt.Println(err)
 			c.JSON(500, gin.H{"error": "Failed to process external transfer"})
 			return
 		}
@@ -282,27 +284,27 @@ func (h *BankHandler) processExternalTransfer(req TransferRequest) error {
 	}
 	defer resp.Body.Close()
 
-	var apiResp ExternalAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	var respPayload ExternalAPIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&respPayload); err != nil {
 		return err
 	}
 
-	if apiResp.Status != 200 {
-		return fmt.Errorf("external transfer failed: %s", apiResp.Message)
+	if respPayload.Status != 200 {
+		return fmt.Errorf("external transfer failed: %s", respPayload.Message)
 	}
 
 	return nil
 }
 
-func (h *BankHandler) GetAccountMutations(accountID uint, transactionDate time.Time) ([]model.Transaction, error) {
-	var transactions []model.Transaction
+// func (h *BankHandler) GetAccountMutations(accountID uint, transactionDate time.Time) ([]model.Transaction, error) {
+// 	var transactions []model.Transaction
 
-	err := h.db.Where(
-		"(from_account_id = ? OR to_account_id = ?) AND transaction_date = ?",
-		accountID, accountID, transactionDate,
-	).
-		Order("transaction_date desc").
-		Find(&transactions).Error
+// 	err := h.db.Where(
+// 		"(from_account_id = ? OR to_account_id = ?) AND transaction_date = ?",
+// 		accountID, accountID, transactionDate,
+// 	).
+// 		Order("transaction_date desc").
+// 		Find(&transactions).Error
 
-	return transactions, err
-}
+// 	return transactions, err
+// }
