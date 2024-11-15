@@ -228,18 +228,18 @@ func (h *BankHandler) checkExternalAccount(bankID, accountID string) (*ExternalA
 	}
 	defer resp.Body.Close()
 
-	var apiResp ExternalAPICheckResponse
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+	var respPayload ExternalAPICheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&respPayload); err != nil {
 		return nil, err
 	}
 
-	fmt.Println(apiResp)
+	fmt.Println(respPayload)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("Status code not 200 ", resp.StatusCode)
 	}
 
-	return &apiResp.Data, nil
+	return &respPayload.Data, nil
 
 	// // Handle the case where the response is an array
 	// accountsData, ok := apiResp.Data.([]interface{})
