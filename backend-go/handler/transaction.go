@@ -3,6 +3,7 @@ package handler
 import (
 	"backend-go/model"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -32,6 +33,7 @@ func (a *newTransactionImplement) NewTransaction(c *gin.Context) {
 		ToAccountID           *int64 `json:"to_account_id"`
 		Amount                int64  `json:"amount"`
 		TransactionDesc		  string `json:"transaction_desc"`
+		TransactionDate		  time.Time `json:"transaction_date"`
 		FromBankID			  int64  `json:"from_bank_id"`
 		ToBankID			  int64	 `json:"to_bank_id"`
 	}
@@ -49,7 +51,8 @@ func (a *newTransactionImplement) NewTransaction(c *gin.Context) {
 		FromAccountID:         data.FromAccountID,
 		ToAccountID:           data.ToAccountID,
 		Amount:                data.Amount,
-		TransactionDesc: 	   data.TransactionDesc,	
+		TransactionDesc: 	   data.TransactionDesc,
+		TransactionDate: 		data.TransactionDate,	
 		FromBankID: 		   data.FromBankID,
 		ToBankID: 			   data.ToBankID	,		
 	}
