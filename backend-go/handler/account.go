@@ -382,9 +382,12 @@ func (a *accountImplement) TransferOut(c *gin.Context) {
 // Mutation returns a list of transactions for the current user, sorted by latest (requires auth)
 func (a *accountImplement) Mutation(c *gin.Context) {
 	accountID := c.GetInt64("account_id")
+	toAccountID := c.GetInt64("to_account_id")
+	
 
 	var transactions []model.Transaction
-	query := a.db.Where("account_id = ?", accountID).Order("transaction_date DESC")
+	query := a.db.Where(
+		"(from_account_id = ? OR to_account_id = ?)", accountID,toAccountID).Order("transaction_date DESC")
 
 	if err := query.Find(&transactions).Error; err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

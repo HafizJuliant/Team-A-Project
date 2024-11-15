@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,10 +28,26 @@ type ExternalAPIResponse struct {
 	Data    interface{} `json:"data"`
 }
 
+type ExternalAPICheckResponse struct {
+	Message string                       `json:"message"`
+	Data    ExternalAPICheckResponseData `json:"data"`
+}
+
+type ExternalAPICheckResponseData struct {
+	BankID    string `json:"bank_id"`
+	BankName  string `json:"bank_name"`
+	AccountID string `json:"account_id"`
+	Name      string `json:"name"`
+}
+
 type TransferRequest struct {
 	BankID    string `json:"bank_id"`
 	AccountID string `json:"account_id"`
 	Amount    int64  `json:"amount"`
+}
+
+type GetAccountMutations struct {
+	AccountID string `json:"account_id"`
 }
 
 func NewBankHandler(db *gorm.DB) *BankHandler {
@@ -71,7 +88,7 @@ func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	// Check if it's internal (Celengan) bank
 	if req.BankID == "00-21" {
 		var account model.Account
-		if err := h.db.Where("id = ?", req.AccountID).First(&account).Error; err != nil {
+		if err := h.db.Where("account_id = ?", req.AccountID).First(&account).Error; err != nil {
 			c.JSON(404, gin.H{"error": "Account not found"})
 			return
 		}
@@ -86,21 +103,23 @@ func (h *BankHandler) CheckTransferAccount(c *gin.Context) {
 	}
 
 	// Check external bank account
-    accountInfo, err := h.checkExternalAccount(req.BankID, req.AccountID)
-    if err != nil {
-        c.JSON(500, gin.H{"error": "Failed to check account"})
-        return
-    }
+	accountInfo, err := h.checkExternalAccount(req.BankID, req.AccountID)
+	fmt.Println(accountInfo)
+	fmt.Println(err)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to check account"})
+		return
+	}
 
-    if accountInfo == nil {
-        c.JSON(404, gin.H{"error": "Account not found"})
-        return 
-    }
+	if accountInfo == nil {
+		c.JSON(404, gin.H{"error": "Account not found"})
+		return
+	}
 
-    c.JSON(200, gin.H{
-        "valid": true,
-        "account_info": accountInfo,
-    })
+	c.JSON(200, gin.H{
+		"valid":        true,
+		"account_info": accountInfo,
+	})
 }
 
 // Transfer handles money transfer between accounts
@@ -200,40 +219,45 @@ func (h *BankHandler) fetchExternalBanks() ([]Bank, error) {
 	return banks, nil
 }
 
-func (h *BankHandler) checkExternalAccount(bankID, accountID string) (map[string]interface{}, error) {
-    url := fmt.Sprintf("%s/transfer/%s/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountID)
-    resp, err := http.Get(url)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
+func (h *BankHandler) checkExternalAccount(bankID, accountID string) (*ExternalAPICheckResponseData, error) {
+	url := fmt.Sprintf("%s/transfer/%s/%s", os.Getenv("EXTERNAL_API_URL"), bankID, accountID)
+	fmt.Println(url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-    var apiResp ExternalAPIResponse
-    if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-        return nil, err
-    }
+	var apiResp ExternalAPICheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		return nil, err
+	}
 
-    if apiResp.Status != 200 {
-        return nil, nil
-    }
+	fmt.Println(apiResp)
 
-    // Handle the case where the response is an array
-    accountsData, ok := apiResp.Data.([]interface{})
-    if ok {
-        if len(accountsData) > 0 {
-            accountInfo := accountsData[0].(map[string]interface{})
-            return accountInfo, nil
-        }
-        return nil, nil
-    }
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("Status code not 200 ", resp.StatusCode)
+	}
 
-    // Handle the case where the response is a single object
-    accountInfo, ok := apiResp.Data.(map[string]interface{})
-    if !ok {
-        return nil, fmt.Errorf("invalid account info format")
-    }
+	return &apiResp.Data, nil
 
-    return accountInfo, nil
+	// // Handle the case where the response is an array
+	// accountsData, ok := apiResp.Data.([]interface{})
+	// if ok {
+	// 	if len(accountsData) > 0 {
+	// 		accountInfo := accountsData[0].(map[string]interface{})
+	// 		return accountInfo, nil
+	// 	}
+	// 	return nil, nil
+	// }
+
+	// Handle the case where the response is a single object
+	// accountInfo, ok := respPayload.Data.(map[string]interface{})
+	// if !ok {
+	// 	return nil, fmt.Errorf("invalid account info format")
+	// }
+
+	// return accountInfo, nil
 }
 
 func (h *BankHandler) processExternalTransfer(req TransferRequest) error {
@@ -268,4 +292,17 @@ func (h *BankHandler) processExternalTransfer(req TransferRequest) error {
 	}
 
 	return nil
+}
+
+func (h *BankHandler) GetAccountMutations(accountID uint, transactionDate time.Time) ([]model.Transaction, error) {
+	var transactions []model.Transaction
+
+	err := h.db.Where(
+		"(from_account_id = ? OR to_account_id = ?) AND transaction_date = ?",
+		accountID, accountID, transactionDate,
+	).
+		Order("transaction_date desc").
+		Find(&transactions).Error
+
+	return transactions, err
 }

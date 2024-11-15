@@ -66,6 +66,7 @@ func main() {
 	accountRoutes.GET("/my", middleware.AuthMiddleware(signingKey), accountHandler.My)
 	accountRoutes.GET("/balance", middleware.AuthMiddleware(signingKey), accountHandler.Balance)
 	accountRoutes.POST("/transfer", middleware.AuthMiddleware(signingKey), accountHandler.TransferLocal)
+	accountRoutes.GET("/mutation", middleware.AuthMiddleware(signingKey), accountHandler.Mutation)
 
 	// grouping route with /transaction-category
 	transaction_categoryHandler := handler.NewTransCat(db)
@@ -87,7 +88,7 @@ func main() {
 	bankRoutes := r.Group("/bank")
 	bankRoutes.POST("/transfer", bankHandler.Transfer)
 	bankRoutes.GET("/list", bankHandler.ListBanks)
-	bankRoutes.POST("/check/", bankHandler.CheckTransferAccount)
+	bankRoutes.POST("/check", bankHandler.CheckTransferAccount)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
